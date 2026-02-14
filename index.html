@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Simulador Master V36.1 | Lógica Inteligente</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    :root{--bg:#f1f5f9;--card:#fff;--border:#e2e8f0;}
+    body{font-family:'DM Sans',sans-serif;background:var(--bg);color:#1e293b;padding-bottom:120px;}
+    
+    /* UTILS */
+    .card{background:var(--card);border:1px solid var(--border);border-radius:20px;box-shadow:0 10px 15px -3px rgba(0,0,0,0.05);}
+    .input-field{width:100%;border:1px solid #cbd5e1;border-radius:12px;padding:10px 12px;font-weight:700;color:#1e293b;font-size:0.95rem;transition:all .2s;}
+    .input-field:focus{outline:none;border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.1);}
+    .label{display:block;font-size:10px;font-weight:800;text-transform:uppercase;color:#64748b;margin-bottom:5px;}
+    
+    /* SWITCH NETO/BRUTO */
+    .tax-toggle{display:flex;background:#f8fafc;border-radius:10px;padding:3px;border:1px solid #e2e8f0;}
+    .tax-opt{flex:1;text-align:center;padding:6px;font-size:10px;font-weight:800;border-radius:7px;cursor:pointer;transition:all .2s;color:#64748b;}
+    .tax-opt.active{background:#fff;color:#0f172a;box-shadow:0 1px 3px rgba(0,0,0,0.1);}
+
+    /* RESULT ROWS - GRID 6 COLUMNAS */
+    .res-row{display:grid; grid-template-columns: 1.4fr 0.9fr 0.9fr 1.1fr 1fr 0.7fr; gap:8px; align-items:center; padding:12px 0; border-bottom:1px solid #f1f5f9;}
+    .res-row:last-child{border:none;}
+    .badge{padding:4px 8px;border-radius:6px;font-size:11px;font-weight:800;text-transform:uppercase;display:inline-block;}
+    .bg-ok{background:#ecfdf5;color:#047857;}
+    .bg-warn{background:#fffbeb;color:#b45309;}
+    .bg-bad{background:#fee2e2;color:#b91c1c;}
+    .ch-type{font-size:9px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em;}
+
+    /* RANGE SLIDER CUSTOM */
+    input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 18px; width: 18px; border-radius: 50%; background: #6366f1; cursor: pointer; margin-top: -7px; box-shadow: 0 2px 5px rgba(99,102,241,0.4); }
+    input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #e2e8f0; border-radius: 2px; }
+
+    /* MODAL */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,0.6);backdrop-filter:blur(4px);z-index:50;display:none;align-items:center;justify-content:center;opacity:0;transition:opacity 0.2s;}
+    .modal-backdrop.open{display:flex;opacity:1;}
+    .modal-card{background:#fff;width:95%;max-width:600px;border-radius:24px;overflow:hidden;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);transform:scale(0.95);transition:transform 0.2s; max-height:90vh; display:flex; flex-direction:column;}
+    .modal-backdrop.open .modal-card{transform:scale(1);}
+    
+    /* SUGGESTION BOX */
+    .sug-box{background:linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); color:white; border-radius:20px; padding:20px; position:relative; overflow:hidden;}
+    .sug-box::after{content:''; position:absolute; top:0; right:0; width:150px; height:100%; background:linear-gradient(90deg, transparent, rgba(255,255,255,0.05)); pointer-events:none;}
+  </style>
+</head>
+<body class="flex items-start justify-center min-h-screen pt-8 px-4">
+
+<div class="w-full max-w-4xl relative z-10">
+  
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+    <div class="flex items-center gap-3">
+        <div class="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-xl shadow-indigo-200">
+             <i data-lucide="calculator" class="w-6 h-6"></i>
+        </div>
+        <div>
+            <h1 class="text-2xl font-black text-slate-900 tracking-tight">Simulador V36.1</h1>
+            <p class="text-xs font-bold text-slate-500 uppercase tracking-wide">Desglose Financiero & Lógica Inteligente</p>
+        </div>
+    </div>
+    
+    <button onclick="openSettings()" class="flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors shadow-sm active:scale-95 group">
+        <i data-lucide="sliders-horizontal" class="w-4 h-4 text-slate-400 group-hover:text-indigo-500 transition-colors"></i>
+        <span class="text-xs font-bold text-slate-600 group-hover:text-indigo-600 transition-colors">Reglas y Comisiones</span>
+    </button>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-12 gap-6 mb-6">
+      
+      <div class="md:col-span-5 card p-5 flex flex-col justify-between">
+          <div>
+            <label class="label text-indigo-500"><i data-lucide="coins" class="w-3 h-3 inline mr-1"></i> Costo del Producto</label>
+            <div class="flex gap-2 mb-2">
+                <input id="sim-costo" type="number" placeholder="0" class="input-field text-right text-lg" oninput="runSim()">
+                <div class="w-24 shrink-0">
+                    <div class="tax-toggle h-full">
+                        <div class="tax-opt active flex items-center justify-center" onclick="setTaxMode('bruto')" id="btn-bruto">BRUTO</div>
+                        <div class="tax-opt flex items-center justify-center" onclick="setTaxMode('neto')" id="btn-neto">NETO</div>
+                    </div>
+                </div>
+            </div>
+            <div id="tax-feedback" class="text-[10px] font-bold text-slate-400 text-right h-4"></div>
+          </div>
+
+          <div class="mt-4 bg-slate-50 rounded-xl p-3 border border-slate-100">
+              <div class="flex justify-between items-center mb-2">
+                  <label class="label text-slate-500 mb-0">Meta Rentabilidad</label>
+                  <span id="targetDisplay" class="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded text-[10px] font-black">20%</span>
+              </div>
+              <input type="range" min="5" max="50" value="20" step="1" id="targetSlider" oninput="updateTarget(this.value)">
+          </div>
+      </div>
+
+      <div class="md:col-span-7 card p-5">
+          <div class="grid grid-cols-2 gap-6 h-full">
+              <div class="bg-amber-50/50 rounded-xl p-3 border border-amber-100/50">
+                  <div class="flex items-center gap-2 mb-3">
+                    <i data-lucide="shopping-bag" class="w-4 h-4 text-amber-500"></i>
+                    <span class="text-[10px] font-black text-amber-700 uppercase">Marketplace</span>
+                  </div>
+                  <div class="space-y-3">
+                      <div><label class="label text-amber-800/60">PVP</label><input id="sim-pvp" type="number" placeholder="0" class="input-field border-amber-200 bg-white" oninput="runSim()"></div>
+                      <div><label class="label text-amber-800/60">Oferta</label><input id="sim-oferta" type="number" placeholder="0" class="input-field border-amber-200 bg-white" oninput="runSim()"></div>
+                  </div>
+              </div>
+              <div class="bg-purple-50/50 rounded-xl p-3 border border-purple-100/50">
+                  <div class="flex items-center gap-2 mb-3">
+                    <i data-lucide="store" class="w-4 h-4 text-purple-500"></i>
+                    <span class="text-[10px] font-black text-purple-700 uppercase">Externos</span>
+                  </div>
+                  <div class="space-y-3">
+                      <div><label class="label text-purple-800/60">PVP Ext</label><input id="sim-pvp-ext" type="number" placeholder="0" class="input-field border-purple-200 bg-white" oninput="runSim()"></div>
+                      <div><label class="label text-purple-800/60">Oferta Ext</label><input id="sim-oferta-ext" type="number" placeholder="0" class="input-field border-purple-200 bg-white" oninput="runSim()"></div>
+                  </div>
+              </div>
+          </div>
+      </div>
+  </div>
+
+  <div id="suggestionCard" class="sug-box mb-6 hidden transition-all duration-500 ease-in-out">
+      <div class="flex flex-col md:flex-row items-center justify-between gap-4 relative z-10">
+          <div>
+              <div class="flex items-center gap-2 mb-1">
+                  <span class="bg-white/20 text-white px-2 py-0.5 rounded text-[10px] font-bold uppercase">Sugerido Global</span>
+                  <i data-lucide="sparkles" class="w-3 h-3 text-yellow-300"></i>
+              </div>
+              <h3 class="text-3xl font-black text-white tracking-tight" id="globalSugPrice">$0</h3>
+              <p class="text-xs text-indigo-200 mt-1 font-medium">
+                  Precio mínimo para ganar <b class="text-white" id="sugTargetMargin">20%</b> en todos los canales.
+              </p>
+          </div>
+          <div class="text-right">
+               <div class="text-[10px] font-bold text-indigo-300 uppercase mb-1">Limitado por canal más costoso</div>
+               <div class="bg-black/20 px-3 py-1.5 rounded-lg inline-block border border-white/10">
+                   <span class="text-white font-bold text-sm flex items-center gap-2 justify-end">
+                       <i data-lucide="alert-circle" class="w-3 h-3 text-orange-400"></i> 
+                       <span id="limitingChannelName">Mercado Libre</span>
+                   </span>
+               </div>
+          </div>
+      </div>
+  </div>
+
+  <div class="card overflow-hidden">
+    <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+      <h3 class="text-xs font-black text-slate-500 uppercase tracking-wide">Desglose de Payout & Utilidad</h3>
+      <span class="text-[10px] font-bold text-slate-400">IVA 19% Incluido</span>
+    </div>
+    
+    <div class="px-6 py-2">
+        <div class="grid grid-cols-[1.4fr_0.9fr_0.9fr_1.1fr_1fr_0.7fr] gap-2 pb-2 mb-2 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase mt-4">
+            <div>Canal</div>
+            <div class="text-right">P. Venta</div>
+            <div class="text-right" title="Comisión + Envío">Costos</div>
+            <div class="text-right text-indigo-600">Recibes (Payout)</div>
+            <div class="text-right">Utilidad Real</div>
+            <div class="text-right">Margen</div>
+        </div>
+        
+        <div id="simResults">
+           <div class="text-center py-12 text-slate-400 font-medium text-sm">
+             Ingresa un costo para comenzar la simulación.
+           </div>
+        </div>
+    </div>
+  </div>
+</div>
+
+<div id="settingsModal" class="modal-backdrop">
+    <div class="modal-card">
+        <div class="bg-white px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
+            <div>
+                <h3 class="font-black text-lg text-slate-900">Configuración Avanzada</h3>
+                <p class="text-xs text-slate-500">Define comisiones y reglas de envío por canal.</p>
+            </div>
+            <button onclick="closeSettings()" class="w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-500"><i data-lucide="x" class="w-4 h-4"></i></button>
+        </div>
+        
+        <div class="p-6 overflow-y-auto flex-1">
+            <div class="mb-6">
+                <label class="label mb-2">Selecciona Canal para Editar</label>
+                <select id="channelSelector" onchange="renderChannelSettings()" class="w-full border border-slate-300 rounded-xl px-3 py-2 font-bold text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"></select>
+            </div>
+            <div id="channelSettingsArea" class="hidden">
+                <div class="flex gap-4 mb-6">
+                    <div class="w-1/3">
+                        <label class="label">Comisión (%)</label>
+                        <input type="number" id="edit-comm" class="input-field text-center border-indigo-200 bg-indigo-50/50">
+                    </div>
+                    <div class="w-2/3 flex items-center">
+                        <p class="text-xs text-slate-500 leading-tight">
+                            Este porcentaje se descontará del precio de venta bruto.
+                        </p>
+                    </div>
+                </div>
+                <div class="border-t border-slate-100 pt-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <label class="label text-slate-600">Reglas Logísticas (Tramos)</label>
+                        <button onclick="addRuleRow()" class="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded hover:bg-indigo-100">+ Agregar Regla</button>
+                    </div>
+                    <div class="bg-slate-50 rounded-lg p-3 border border-slate-200">
+                        <div class="flex gap-2 mb-2 px-1">
+                            <div class="w-1/2 text-[9px] font-black uppercase text-slate-400">Si precio es ≤ ($)</div>
+                            <div class="w-1/2 text-[9px] font-black uppercase text-slate-400">Costo Envío es ($)</div>
+                            <div class="w-8"></div>
+                        </div>
+                        <div id="rulesContainer" class="space-y-2"></div>
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-2 italic">El sistema usará la primera regla que se cumpla (orden ascendente).</p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-between shrink-0">
+            <button onclick="restoreDefaults()" class="text-xs font-bold text-red-400 hover:text-red-600">Restaurar Todo</button>
+            <button onclick="saveCurrentChannel()" class="px-6 py-2 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-200 transition">Guardar Cambios</button>
+        </div>
+    </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════
+   DATA & CONFIG ENGINE
+══════════════════════════════════════════════════════ */
+const IVA = 0.19;
+const IVA1 = 1.19;
+const fmt = new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:0});
+let TAX_MODE = 'bruto';
+let TARGET_MARGIN = 0.20;
+
+const DEFAULT_CONFIG = {
+  MercadoLibreCL: { name: "Mercado Libre", type: "market", comm: 13, rules: [{limit: 19989, cost: 1000}, {limit: 9999999, cost: 3500}] },
+  FalabellaCL: { name: "Falabella", type: "market", comm: 16, rules: [{limit: 9999999, cost: 1500}] },
+  ParisCL: { name: "Paris", type: "market", comm: 15, rules: [{limit: 9999999, cost: 1500}] },
+  RipleyCL: { name: "Ripley", type: "market", comm: 20, rules: [{limit: 9999999, cost: 1500}] },
+  LiderCL: { name: "Lider", type: "market", comm: 13, rules: [{limit: 19990, cost: 1000}, {limit: 9999999, cost: 2000}] },
+  Shopify: { name: "Shopify", type: "ext", comm: 2, rules: [{limit: 9999999, cost: 0}] },
+  UberEats: { name: "Uber Eats", type: "ext", comm: 30, rules: [{limit: 9999999, cost: 0}] },
+  PedidosYa: { name: "PedidosYa", type: "ext", comm: 30, rules: [{limit: 9999999, cost: 0}] }
+};
+
+let CONFIG = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+
+function calculateShipping(channelKey, price) {
+    const rules = CONFIG[channelKey].rules;
+    if (!rules || rules.length === 0) return 0;
+    const sortedRules = [...rules].sort((a,b) => a.limit - b.limit);
+    for (const rule of sortedRules) {
+        if (price <= rule.limit) return Number(rule.cost);
+    }
+    return Number(sortedRules[sortedRules.length - 1].cost);
+}
+
+function ajust90(val){
+  const t = Math.ceil(val);
+  if(t<=0) return 0;
+  let c = Math.floor(t/100)*100+90;
+  if(c<t) c+=100;
+  return c;
+}
+
+function updateTarget(val){
+    TARGET_MARGIN = parseInt(val)/100;
+    document.getElementById('targetDisplay').textContent = val + '%';
+    document.getElementById('sugTargetMargin').textContent = val + '%';
+    runSim();
+}
+
+function setTaxMode(mode){
+  TAX_MODE = mode;
+  document.getElementById('btn-bruto').className = `tax-opt ${mode==='bruto'?'active':''}`;
+  document.getElementById('btn-neto').className = `tax-opt ${mode==='neto'?'active':''}`;
+  runSim();
+}
+
+function runSim(){
+  const rawCost = Number(document.getElementById('sim-costo').value) || 0;
+  const pvpMkt = Number(document.getElementById('sim-pvp').value) || 0;
+  const offMkt = Number(document.getElementById('sim-oferta').value) || 0;
+  const pvpExt = Number(document.getElementById('sim-pvp-ext').value) || 0;
+  const offExt = Number(document.getElementById('sim-oferta-ext').value) || 0;
+
+  // 1. Costo Real
+  let finalCost = rawCost;
+  const taxFeedback = document.getElementById('tax-feedback');
+  if(TAX_MODE === 'neto' && rawCost > 0){
+    finalCost = Math.round(rawCost * 1.19);
+    taxFeedback.textContent = `Costo Real (c/IVA): ${fmt.format(finalCost)}`;
+  } else {
+    taxFeedback.textContent = '';
+  }
+
+  const container = document.getElementById('simResults');
+  const sugCard = document.getElementById('suggestionCard');
+  
+  if(finalCost <= 0){
+    container.innerHTML = '<div class="text-center py-10 text-slate-400 font-medium text-sm">Ingresa un costo válido para comenzar.</div>';
+    sugCard.classList.add('hidden');
+    return;
+  }
+
+  let html = '';
+  const costoNeto = Math.round(finalCost / 1.19);
+  
+  let maxSuggestedPrice = 0;
+  let worstChannelName = '';
+
+  Object.entries(CONFIG).forEach(([key, data]) => {
+    // A. CÁLCULO ACTUAL
+    let price = (data.type === 'ext') ? (offExt > 0 ? offExt : pvpExt) : (offMkt > 0 ? offMkt : pvpMkt);
+    
+    if(price > 0) {
+        const shipCost = calculateShipping(key, price);
+        const commPct = data.comm / 100;
+        
+        // --- MATH V36 ---
+        const ventaNeta = Math.round(price / 1.19);         
+        const commCost = Math.round(price * commPct);       
+        const totalCosts = commCost + shipCost;
+
+        // Payout
+        const payout = ventaNeta - totalCosts;
+
+        // Utilidad
+        const utility = payout - costoNeto;
+        const margin = ventaNeta > 0 ? (utility / ventaNeta) : 0;
+
+        let badgeCls = 'bg-ok';
+        if(margin < 0.10) badgeCls = 'bg-warn';
+        if(margin < 0) badgeCls = 'bg-bad';
+
+        const typeLabel = data.type === 'market' ? 'Marketplace' : 'Externo';
+
+        html += `
+        <div class="res-row hover:bg-slate-50 transition-colors">
+          <div class="pl-2">
+            <div class="ch-type">${typeLabel}</div>
+            <div class="font-bold text-sm text-slate-800">${data.name}</div>
+            <div class="text-[10px] text-slate-400 font-bold">Comisión ${data.comm}%</div>
+          </div>
+          <div class="text-right font-bold text-slate-700 text-sm">${fmt.format(price)}</div>
+          <div class="text-right text-xs font-bold text-rose-500">-${fmt.format(totalCosts)}</div>
+          <div class="text-right font-black text-sm text-indigo-600">${fmt.format(payout)}</div>
+          <div class="text-right font-bold text-sm ${utility>=0?'text-emerald-600':'text-red-500'}">${fmt.format(utility)}</div>
+          <div class="text-right pr-2">
+            <span class="badge ${badgeCls}">${(margin*100).toFixed(1)}%</span>
+          </div>
+        </div>`;
+    }
+
+    // B. CÁLCULO DE SUGERIDO (LÓGICA CORREGIDA V36.1)
+    const den = (1/1.19) - (data.comm/100) - TARGET_MARGIN;
+    
+    if(den > 0) {
+        const rules = [...data.rules].sort((a,b)=>a.limit-b.limit);
+        let validPriceForChannel = 0;
+
+        for(let i = 0; i < rules.length; i++) {
+             const r = rules[i];
+             const tempPrice = (costoNeto + r.cost) / den;
+             
+             if (tempPrice <= r.limit || i === rules.length - 1) {
+                 validPriceForChannel = ajust90(tempPrice);
+                 break; 
+             }
+        }
+        
+        if(validPriceForChannel > maxSuggestedPrice) {
+            maxSuggestedPrice = validPriceForChannel;
+            worstChannelName = data.name;
+        }
+    }
+  });
+
+  if(html === '') {
+     container.innerHTML = '<div class="text-center py-6 text-slate-400 text-sm">Ingresa precios de venta para ver el desglose, o guíate por el sugerido global.</div>';
+  } else {
+     container.innerHTML = html;
+  }
+
+  if(maxSuggestedPrice > 0) {
+      sugCard.classList.remove('hidden');
+      document.getElementById('globalSugPrice').textContent = fmt.format(maxSuggestedPrice);
+      document.getElementById('limitingChannelName').textContent = worstChannelName;
+  } else {
+      sugCard.classList.add('hidden');
+  }
+}
+
+/* ══════════════════════════════════════════════════════
+   SETTINGS LOGIC
+══════════════════════════════════════════════════════ */
+let currentEditingChannel = '';
+
+function openSettings(){
+    const sel = document.getElementById('channelSelector');
+    sel.innerHTML = '<option value="" disabled selected>Selecciona...</option>';
+    Object.entries(CONFIG).forEach(([key, data]) => {
+        const op = document.createElement('option');
+        op.value = key;
+        op.textContent = data.name;
+        sel.appendChild(op);
+    });
+    document.getElementById('channelSettingsArea').classList.add('hidden');
+    document.getElementById('settingsModal').classList.add('open');
+}
+
+function closeSettings(){
+    document.getElementById('settingsModal').classList.remove('open');
+}
+
+function renderChannelSettings(){
+    const key = document.getElementById('channelSelector').value;
+    if(!key) return;
+    currentEditingChannel = key;
+    const data = CONFIG[key];
+    document.getElementById('edit-comm').value = data.comm;
+    const rulesContainer = document.getElementById('rulesContainer');
+    rulesContainer.innerHTML = '';
+    data.rules.forEach((rule, index) => {
+        addRuleRowUI(rule.limit, rule.cost, index);
+    });
+    document.getElementById('channelSettingsArea').classList.remove('hidden');
+}
+
+function addRuleRowUI(limit = '', cost = '', index = null){
+    const div = document.createElement('div');
+    div.className = 'rule-row flex gap-2 mb-2';
+    div.innerHTML = `
+        <input type="number" placeholder="Límite" class="rule-input r-limit border border-slate-200 rounded p-1 text-sm w-full" value="${limit}">
+        <input type="number" placeholder="Costo" class="rule-input r-cost border border-slate-200 rounded p-1 text-sm w-full" value="${cost}">
+        <button onclick="this.parentElement.remove()" class="text-red-400 hover:bg-red-50 p-1 rounded"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+    `;
+    document.getElementById('rulesContainer').appendChild(div);
+    lucide.createIcons();
+}
+
+function addRuleRow(){ addRuleRowUI(); }
+
+function saveCurrentChannel(){
+    if(!currentEditingChannel) { closeSettings(); return; }
+    const comm = parseFloat(document.getElementById('edit-comm').value) || 0;
+    const rows = document.querySelectorAll('#rulesContainer .rule-row');
+    const newRules = [];
+    rows.forEach(row => {
+        const l = parseFloat(row.querySelector('.r-limit').value);
+        const c = parseFloat(row.querySelector('.r-cost').value);
+        if(!isNaN(l) && !isNaN(c)){ newRules.push({limit: l, cost: c}); }
+    });
+    newRules.sort((a,b) => a.limit - b.limit);
+    CONFIG[currentEditingChannel].comm = comm;
+    CONFIG[currentEditingChannel].rules = newRules;
+    runSim();
+    closeSettings();
+}
+
+function restoreDefaults(){
+    if(confirm('¿Volver a configuración de fábrica?')){
+        CONFIG = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+        closeSettings();
+        runSim();
+    }
+}
+
+lucide.createIcons();
+</script>
+</body>
+</html>
